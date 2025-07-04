@@ -1,2 +1,2 @@
 # SoloVar
-![SoloVar logo](.ignore/SoloVar.png=75x)
+<img src=".ignore/SoloVar.png" alt="SoloVar logo" width="150" />
