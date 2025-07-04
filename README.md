@@ -1,2 +1,2 @@
 # SoloVar
-![SoloVar logo](.ignore/SoloVar.png)
+![SoloVar logo](.ignore/SoloVar.png =75x)
