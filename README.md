@@ -1,2 +1,2 @@
 # SoloVar
-<img src=".ignore/SoloVar.png" alt="SoloVar logo" width="500" />
+![logo](.ignore/SV.png)
