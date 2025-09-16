@@ -26,6 +26,7 @@
 | `qc_pipeline.py`                 | Generate QC plots & stats from mapping logs  |
 | `somatic_variant_calling_pipeline.sh` | Somatic variant calling & filtering (Mutect2) |
 | `vcf_annotation_pipeline.sh`     | Annotate/filter VCFs, convert to MAF, merge  |
+| `cnvkit_pipeline.sh`             | Copy number variation (CNV) analysis         |
 
 ---
 
@@ -55,10 +56,12 @@ You must have the following tools installed and available in your `$PATH`:
 - `python3` (for QC pipeline)
 - `matplotlib`, `seaborn`, `pandas` (for `qc_pipeline.py`)
 - `funcotator`, `vep`, `OncoKB annotator` (for annotation)
+- `cnvkit.py` (for CNV analysis)
+- `parallel` (GNU parallel, for CNVkit pipeline)
 
 Install with:
 ```bash
-conda install -c bioconda bwa picard gatk4 fastqc multiqc fastp
+conda install -c bioconda bwa picard gatk4 fastqc multiqc fastp cnvkit parallel
 pip install pyyaml matplotlib seaborn pandas
 # For annotation: follow GATK Funcotator, VEP, and OncoKB installation guides
 ```
@@ -115,6 +118,7 @@ subgr: /path/to/common_sites.vcf
 threads: 8
 ```
 
+
 ### VCF Annotation Pipeline
 ```yaml
 vcf_dir: /path/to/vcfs
@@ -124,6 +128,18 @@ funcotator_data_sources: /path/to/funcotator_data
 oncokb_enabled: yes
 token: <your_oncokb_token>
 threads: 4
+```
+
+### CNVkit Pipeline
+```yaml
+bed: /path/to/regions.bed
+ref: /path/to/reference.fa
+acc: /path/to/access-5kb-mappable.hg38.bed
+out_dir: /path/to/output/
+inputsamples: /path/to/bam_list.txt
+cellularity_file: /path/to/cellularity.txt
+threads: 8
+annotation_file: /path/to/annotation.bed
 ```
 
 ---
@@ -143,21 +159,27 @@ threads: 4
 - Calls variants with Mutect2
 - Filters variants, calculates contamination, and selects high-confidence calls
 
+
 ### 4. VCF Annotation (`vcf_annotation_pipeline.sh`)
 - Annotates VCFs with Funcotator
 - Converts to MAF, annotates with OncoKB, merges MAFs (if enabled)
 
+### 5. CNVkit (`cnvkit_pipeline.sh`)
+- Runs CNVkit to perform copy number analysis on BAM files
+- Supports purity correction if cellularity file is provided
+
 ---
 
 ---
+
 
 ## 🧪 Optional: Filtering Pipeline
 
 <p align="center">
-	<img src="images/Filtering_Pipe.png" alt="Filtering Pipeline" width="600"/>
+  <img src="images/Filtering_Pipe.png" alt="Filtering Pipeline" width="600"/>
 </p>
 
-The Filtering Pipeline can be used after annotation to further refine variant calls based on allele frequency, known databases, or custom criteria. See the example YAMLs and script headers for configuration options.
+The Filtering Pipeline is a conceptual step shown for users who wish to implement additional filtering after annotation (e.g., by allele frequency, known databases, or custom logic). No script or YAML is provided—users can design their own filtering as needed.
 
 ---
 
