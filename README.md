@@ -1,15 +1,14 @@
-
+# SoloVar: Somatic Variant Analysis Pipelines
 <p align="center">
   <img src=".ignore/SV.png" alt="SoloVar Logo" width="350"/>
 </p>
 
-# SoloVar: Somatic Variant Analysis Pipelines
+**SoloVar** is a modular toolkit for somatic variant analysis (SNV & CNV) in tumor samples without a matching normal. It provides end-to-end pipelines for trimming, mapping, variant calling, and annotation, all driven by simple YAML configuration files.
 
 <p align="center">
   <img src="images/pipe.png" alt="Pipeline Overview" width="700"/>
 </p>
 
-**SoloVar** is a modular toolkit for somatic variant analysis (SNV & CNV) in tumor samples without a matching normal. It provides end-to-end pipelines for trimming, mapping, variant calling, and annotation, all driven by simple YAML configuration files.
 
 ---
 
