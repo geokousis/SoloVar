@@ -166,8 +166,6 @@ annotation_file: /path/to/annotation.bed
 
 ---
 
----
-
 
 ## 🧪 Optional: Filtering Pipeline
 
@@ -179,7 +177,7 @@ The Filtering Pipeline is a conceptual step shown for users who wish to implemen
 
 ---
 
-## � Example Results
+## Example Results
 
 ### Oncoprint Results
 
