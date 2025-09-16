@@ -1,15 +1,12 @@
 
-# SoloVar: Somatic Variant Analysis Pipelines
-
-
 <p align="center">
-	<img src=".ignore/SV.png" alt="SoloVar Logo" width="350"/>
+  <img src=".ignore/SV.png" alt="SoloVar Logo" width="350"/>
 </p>
 
----
+# SoloVar: Somatic Variant Analysis Pipelines
 
 <p align="center">
-	<img src="images/pipe.png" alt="Pipeline Overview" width="700"/>
+  <img src="images/pipe.png" alt="Pipeline Overview" width="700"/>
 </p>
 
 **SoloVar** is a modular toolkit for somatic variant analysis (SNV & CNV) in tumor samples without a matching normal. It provides end-to-end pipelines for trimming, mapping, variant calling, and annotation, all driven by simple YAML configuration files.
@@ -194,12 +191,11 @@ The Filtering Pipeline is a conceptual step shown for users who wish to implemen
 <p align="center">
 	<img src="images/oncoprint_2.png" alt="Oncoprint 2" width="600"/>
 </p>
+
+---
 - All scripts require a YAML config as the only argument
 - Make sure all paths in your YAML are absolute or relative to your working directory
 - Check each script's header for more details and options
-
----
-
 ---
 
 ## 📬 Issues & Contributions
