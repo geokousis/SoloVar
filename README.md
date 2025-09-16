@@ -76,8 +76,6 @@ python3 qc_pipeline.py <combined_log.txt> <output_directory>
 
 ---
 
----
-
 ## 📝 Example YAML Configs
 
 ### Trimming Pipeline
