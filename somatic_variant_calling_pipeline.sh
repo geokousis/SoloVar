@@ -30,7 +30,7 @@
 #   - Select passed variants from each filtered VCF.
 #
 # Usage:
-#   ./integrated_somatic_variant_pipeline.sh config.yaml
+#   ./somatic_variant_calling_pipeline.sh config.yaml
 
 ########################################
 # YAML Parser (simple key: value pairs)
