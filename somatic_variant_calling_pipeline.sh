@@ -30,7 +30,7 @@
 #   - Select passed variants from each filtered VCF.
 #
 # Usage:
-#   ./somatic_variant_calling_pipeline.sh config.yaml
+#   ./integrated_somatic_variant_pipeline.sh config.yaml
 
 ########################################
 # YAML Parser (simple key: value pairs)
@@ -45,6 +45,12 @@ parse_yaml() {
         fi
     done < "$yaml_file"
 }
+
+########################################
+# Logging helper
+########################################
+# Global settings
+DRY_RUN=${DRY_RUN:-false}    # Set to 'true' to enable dry-run mode (show commands without executing)
 ########################################
 # Execute helper function (with logging & dry-run)
 ########################################
@@ -55,6 +61,14 @@ execute() {
     local verbose_flag="${4:-}"
     local tool
     tool=$(echo "$cmd" | awk '{print $1}')
+
+    # Dry-run: show but do not execute
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "\033[2m[DRY RUN]\033[0m \033[1m$description\033[0m"
+        echo "[CMD] $cmd"
+        return 0
+    fi
+
     # Verify tool availability before running
     if ! command -v "$tool" &>/dev/null; then
         echo -e "\033[1mError: Required tool '$tool' not found.\033[0m"
