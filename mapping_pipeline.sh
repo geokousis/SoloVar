@@ -1,4 +1,5 @@
 #!/bin/bash
+export SHELL=/bin/bash
 
 # ====================================
 # Integrated Mapping Pipeline
@@ -165,77 +166,105 @@ SetNmMdAndUqTags() {
 ########################################
 SplitIntervals() {
     echo "Splitting intervals..." | tee -a "$LOG_FILE"
-    execute "$gatk_path SplitIntervals -R \"$reference\" -L \"$intervals\" --subdivision-mode BALANCING_WITHOUT_INTERVAL_SUBDIVISION --scatter-count \"$threads\" -O intervals" "SplitIntervals"
+    local out_int="${output_directory%/}/intervals"
+    mkdir -p "$out_int"
+    execute "$GATK_CMD SplitIntervals \
+      -R \"$reference\" \
+      ${intervals:+-L \"$intervals\"} \
+      --subdivision-mode BALANCING_WITHOUT_INTERVAL_SUBDIVISION \
+      --scatter-count \"$threads\" \
+      -O \"$out_int\"" "SplitIntervals"
     echo "Interval splitting completed." | tee -a "$LOG_FILE"
 }
-
-BQSR_Single() {
-    local input_bam="$1"
-    local interval_split="$2"
-    local base_name
-    base_name=$(basename "$input_bam" .bam)
-    local interval_code
-    interval_code=$(basename "$interval_split" | sed 's/\\.interval_list$//')
-    local recal_table="${base_name}_${interval_code}.table"
-
-    # Build known-sites arguments
-    local known_sites_cmd=""
-    IFS=',' read -ra sites <<< "$known_sites"
-    for site in "${sites[@]}"; do
-        site=$(echo "$site" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-        known_sites_cmd+=" --known-sites $site"
-    done
-
-    echo "Running BQSR on $base_name for interval $interval_code" | tee -a "$LOG_FILE"
-    execute "$gatk_path BaseRecalibrator -I \"$input_bam\" -R \"$reference\" -L \"$interval_split\" --interval-padding \"$padding\" $known_sites_cmd -O \"$recal_table\" --tmp-dir \"${output_directory}/bqsr_tmp\"" "BaseRecalibrator for $base_name interval $interval_code"
-}
-
 CombineTables() {
-    local base_name="$1"
-    shift
+    local base_name="$1"; shift
     local recal_tables=("$@")
-    local output_combined_table="${mapping_output_dir}${base_name}_combined.table"
-    local arguments_file="${output_directory}/tmp_bqsr/${base_name}_recal_tables.args"
-
+    local output_combined_table="${mapping_output_dir%/}/${base_name}_combined.table"
+    local tmp_dir="${output_directory%/}/tmp_bqsr"
+    local arguments_file="${tmp_dir}/${base_name}_recal_tables.args"
     echo "Combining BQSR tables for $base_name" | tee -a "$LOG_FILE"
-    mkdir -p "${output_directory}/tmp_bqsr"
-    : > "$arguments_file"  # Clear or create
-
-    for table in "${recal_tables[@]}"; do
-        echo "-I $table" >> "$arguments_file"
+    mkdir -p "$tmp_dir"
+    : > "$arguments_file"
+    for t in "${recal_tables[@]}"; do
+        echo "-I $t" >> "$arguments_file"
     done
-
-    execute "$gatk_path GatherBQSRReports --arguments_file \"$arguments_file\" -O \"$output_combined_table\"" "GatherBQSRReports for $base_name"
-
+    execute "$GATK_CMD GatherBQSRReports --arguments_file \"$arguments_file\" -O \"$output_combined_table\"" "GatherBQSRReports for $base_name"
     echo "Combined tables into $output_combined_table" | tee -a "$LOG_FILE"
-    rm "$arguments_file"
-    rm -r "${output_directory}/tmp_bqsr"
+    rm -f "$arguments_file"
 }
-
 ApplyBQSR() {
     local input_bam="$1"
-    local base_name
-    base_name=$(basename "$input_bam" .bam)
-    local combined_table="${mapping_output_dir}${base_name}_combined.table"
-    local output_bqsr_bam="${mapping_output_dir}${base_name}_recalibrated.bam"
-
-    echo "Applying BQSR to $base_name using table $combined_table" | tee -a "$LOG_FILE"
+    local base_name; base_name=$(basename "$input_bam" .bam)
+    local combined_table="${mapping_output_dir%/}/${base_name}_combined.table"
+    local output_bqsr_bam="${mapping_output_dir%/}/${base_name}_recalibrated.bam"
+    echo "Applying BQSR to $(basename "$input_bam") using table $combined_table" | tee -a "$LOG_FILE"
     if [[ ! -f "$combined_table" ]]; then
         echo "Error: Combined table $combined_table not found!" | tee -a "$LOG_FILE"
-        exit 1
+        return 1
     fi
-
-    execute "$gatk_path ApplyBQSR -R \"$reference\" -I \"$input_bam\" --bqsr-recal-file \"$combined_table\" -O \"$output_bqsr_bam\"" "ApplyBQSR for $base_name"
-    echo "Applied BQSR to $base_name; output: $(basename "$output_bqsr_bam")" | tee -a "$LOG_FILE"
+    execute "$GATK_CMD ApplyBQSR -R \"$reference\" -I \"$input_bam\" --bqsr-recal-file \"$combined_table\" -O \"$output_bqsr_bam\"" "ApplyBQSR for $(basename "$input_bam")"
+    echo "Applied BQSR to $(basename "$input_bam"); output: $(basename "$output_bqsr_bam")" | tee -a "$LOG_FILE"
 }
 run_qc() {
     execute "cat '${mapping_output_dir}/LOG_'*.txt > '${output_directory}/combined_log.txt'" "Combining flagstat logs"
     execute "python3 qc_pipeline.py '${output_directory}/combined_log.txt' '${output_directory}'" "Running QC Python script"
 }
+BQSR() {
+    local input_bam="$1"
+    local interval_split="$2"
+    local base_name; base_name=$(basename "$input_bam" .bam)
+    local interval_code; interval_code=$(basename "$interval_split" | sed 's/\.interval_list$//')
+    local recal_table="${base_name}_${interval_code}.table"
+
+    local known_sites_cmd=""
+    if declare -p known_sites 2>/dev/null | grep -q 'declare \-a'; then
+        for site in "${known_sites[@]}"; do
+            site=$(echo "$site" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+            [[ -n "$site" ]] && known_sites_cmd+=" --known-sites $site"
+        done
+    else
+        IFS=',' read -ra sites <<< "${known_sites:-}"
+        for site in "${sites[@]}"; do
+            site=$(echo "$site" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+            [[ -n "$site" ]] && known_sites_cmd+=" --known-sites $site"
+        done
+    fi
+
+    local padding_opt=""
+    [[ -n "${padding:-}" ]] && padding_opt=" --interval-padding $padding"
+
+    echo "Running BQSR on $(basename "$input_bam") for interval $interval_code" | tee -a "$LOG_FILE"
+    execute "$GATK_CMD BaseRecalibrator \
+      -I \"$input_bam\" \
+      -R \"$reference\" \
+      -L \"$interval_split\"$padding_opt \
+      $known_sites_cmd \
+      -O \"$recal_table\" \
+      --tmp-dir \"${output_directory%/}/bqsr_tmp\"" \
+      "BaseRecalibrator for $(basename "$input_bam") on interval $interval_code"
+}
+
 ########################################
 # Main Pipeline
 ########################################
 main_pipeline() {
+
+    # Resolve GATK launcher once
+    if command -v gatk >/dev/null 2>&1; then
+        GATK_CMD="gatk"
+    elif [[ -n "${gatk_path:-}" ]]; then
+        if [[ "$gatk_path" == *.jar ]]; then
+            GATK_CMD="java -jar \"$gatk_path\""
+        elif [[ -x "$gatk_path" ]]; then
+            GATK_CMD="\"$gatk_path\""
+        else
+            echo "Error: gatk_path set but not executable: $gatk_path" | tee -a "$LOG_FILE"
+            exit 1
+        fi
+    else
+        echo "Error: Required tool 'gatk' not found; set PATH or gatk_path." | tee -a "$LOG_FILE"
+        exit 1
+    fi
     start_time=$(date +"%Y-%m-%d %H:%M:%S")
     LOG_FILE="${output_directory}/pipeline_$(date +'%Y%m%d_%H%M%S').log"
 
@@ -250,12 +279,13 @@ main_pipeline() {
     Mapping
 
     if [[ "$markduplicates_enabled" == "yes" ]]; then
+	export mapping_output_dir
         execute "echo '=== MarkDuplicates ==='" "MarkDuplicates step"
         pushd "$mapping_output_dir" > /dev/null
         execute "ls sorted_*.bam > bam_list.txt" "Listing sorted BAMs"
 
         export -f QuerySort MarkDuplicates SetNmMdAndUqTags execute
-        export mapping_output_dir output_directory threads picard_path reference gatk_path LOGFILE threads
+        export mapping_output_dir output_directory threads picard_path reference gatk_path LOG_FILE threads
 
         parallel --jobs "$threads" QuerySort :::: bam_list.txt
         execute "ls qs_*.bam > qs_list.txt" "Listing query-sorted BAMs"
@@ -266,27 +296,67 @@ main_pipeline() {
         execute "mv bam_list.txt qs_list.txt md_list.txt '${output_directory}/logs_mark_dup/'" "Archiving BAM lists"
         popd > /dev/null
     fi
-
     if [[ "$bqsr_enabled" == "yes" ]]; then
-        execute "echo '=== BQSR ==='" "BQSR section"
+        echo "=== BQSR ===" | tee -a "$LOG_FILE"
+
+        # Split intervals to an absolute directory
+        mkdir -p "${output_directory%/}/bqsr_tmp"
         SplitIntervals
+
+        # Expand intervals to concrete files (no wildcards later)
+        INTERVALS_DIR="${output_directory%/}/intervals"
+        mapfile -t INTERVALS < <(printf '%s
+' "$INTERVALS_DIR"/*.interval_list)
+        if (( ${#INTERVALS[@]} == 0 )); then
+            echo "ERROR: No interval_list files in $INTERVALS_DIR" | tee -a "$LOG_FILE"
+            exit 1
+        fi
+
         pushd "$mapping_output_dir" > /dev/null
-        execute "ls f_*.bam > bam_list.txt" "Listing recalibrated BAMs"
+        export -f BQSR CombineTables ApplyBQSR
+        export GATK_CMD output_directory threads reference picard_path gatk_path intervals padding known_sites mapping_output_dir LOG_FILE
 
-        export -f BQSR_Single GatherTables ApplyBQSR execute
-        export mapping_output_dir output_directory reference gatk_path known_sites threads 
+        # Per-sample × per-interval shards
+        for bam_file in f_*.bam; do
+            [[ -e "$bam_file" ]] || continue
+            echo "Running BQSR for $(basename "$bam_file")" | tee -a "$LOG_FILE"
+            parallel --jobs "${threads:-1}" BQSR {1} {2} ::: "$bam_file" ::: "${INTERVALS[@]}"
+        done
 
-        parallel --jobs "$threads" BQSR_Single ::: $(cat bam_list.txt) ::: ../intervals/*.interval_list
+        # Combine per-sample tables
+        for bam_file in f_*.bam; do
+            [[ -e "$bam_file" ]] || continue
+            base_name=$(basename "$bam_file" .bam)
+            tables=()
+            for f in "${INTERVALS[@]}"; do
+                icode=$(basename "$f" .interval_list)
+                tables+=( "${base_name}_${icode}.table" )
+            done
+            CombineTables "$base_name" "${tables[@]}"
+        done
 
-        while read -r bam; do
-            base=$(basename "$bam" .bam)
-            tables=( ${base}_*.table )
-            GatherTables "$base" "${tables[@]}"
-            ApplyBQSR "$bam"
-        done < bam_list.txt
-
+        # Apply across samples in parallel
+        parallel --jobs "${threads:-1}" ApplyBQSR {1} ::: f_*.bam
         popd > /dev/null
     fi
+	
+        parallel --jobs "$threads" \
+		 :::: bam_list.txt \
+		 ::: "${INTERVALS[@]}"
+
+	while read -r bam; do
+	    base=$(basename "$bam" .bam)
+	    tables=( "${base}"_*.table )
+	    if (( ${#tables[@]} == 0 )); then
+		echo "WARNING: No tables for ${base}; skipping GatherTables/ApplyBQSR"
+		continue
+	    fi
+	    GatherTables "$base" "${tables[@]}"
+	    ApplyBQSR "$bam"
+	done < bam_list.txt
+	
+        popd > /dev/null
+
 
     execute "echo '=== QC ==='" "QC section"
     run_qc
