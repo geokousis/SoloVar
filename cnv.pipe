@@ -1,0 +1,6 @@
+# data mining
+python3 1_CNV_new.py --cnvkit-dir /home/kousis/work/meth/ILCEM/CNVKIT/cnvkit_results_complete_hmm/CNV_results/call --arms res/hg38_chrom_arms.bed --outdir CNV_new_f --targets res/S07604514_Regions.clean.bed
+# Cohort summary
+python3 2_CNV.py CNV_new_f/cohort_arm_summary.tsv
+# Genes
+python3 3_CNV_new.py --cnvkit-dir /home/kousis/work/meth/ILCEM/CNVKIT/cnvkit_results_complete_hmm/CNV_results/call --gene-list Merged/Drivers/gene.list --out CNV_new_genes_f
