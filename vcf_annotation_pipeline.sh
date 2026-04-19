@@ -236,9 +236,9 @@ if [ -z "${onko_out_dir:-}" ]; then
     onko_out_dir="${output_directory}/maf_onko"
 fi
 
-# Default scripts directory to the directory containing this script.
+# Default scripts directory to the scripts/ subdir alongside this script.
 if [ -z "${scripts:-}" ]; then
-    scripts="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    scripts="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts"
 fi
 
 # Export variables and functions needed for parallel execution.

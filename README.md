@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="images/solo_icon.png" alt="SoloVar" width="150"/>
+</p>
+
+<p align="center"><em>"Never tell me the odds!"</em></p>
+
 # SoloVar — Somatic Variant Analysis Pipeline
 
 <p align="center">
@@ -40,23 +46,23 @@ trimming_pipeline.sh          QC + trim (FastQC, fastp)
   ▼
 mapping_pipeline.sh           Align + BQSR (BWA-MEME, GATK)
   │            │
-  │            └─► qc_pipeline.py       Mapping QC plots
+  │            └─► scripts/qc_mapping.py     Mapping QC plots
   │
   ▼
 somatic_variant_calling_pipeline.sh   Mutect2 + FilterMutectCalls
   │
-  ├──► Dragencaller.sh         (optional) Germline calling
+  ├──► germline_calling_pipeline.sh    (optional) Germline calling
   │
   ├──► cnvkit_pipeline.sh      CNV from BAMs
   │         │
-  │         └─► PureCN.sh      Purity + per-variant CN
+  │         └─► purecn_pipeline.sh     Purity + per-variant CN
   │
   ▼
 vcf_annotation_pipeline.sh    Funcotator → vcf2maf/VEP → OncoKB → merge MAFs
-  │  (merge_mafs.py, filter_af.py)
+  │  (scripts/merge_mafs.py, scripts/filter_af.py)
   │
   ▼
-pipes/filter.pipe             slim_maf → PureCN merge → 1_Filter → 2_Filter
+pipes/filter.pipe             slim_maf → PureCN merge → filter_basic → filter_biological
   │
   ├──► pipes/cnv.pipe          Arm-level + gene-level CNV summaries
   │
@@ -77,10 +83,10 @@ pipes/filter.pipe             slim_maf → PureCN merge → 1_Filter → 2_Filte
 | `vcf2maf` + VEP | vcf_annotation_pipeline.sh |
 | `OncoKB MafAnnotator` | vcf_annotation_pipeline.sh |
 | `cnvkit` | cnvkit_pipeline.sh |
-| `PureCN` (R) | PureCN.sh |
+| `PureCN` (R) | purecn_pipeline.sh |
 | `GNU parallel` | mapping, variant, cnvkit pipelines |
 | `python3` + `pandas`, `numpy`, `matplotlib`, `seaborn` | all Python scripts |
-| `pysam` | filter_af.py only |
+| `pysam` | scripts/filter_af.py only |
 
 Install Python dependencies:
 ```bash
@@ -156,7 +162,7 @@ known_sites: "/path/to/dbsnp138.vcf.gz, /path/to/1000G_phase1.vcf.gz, /path/to/M
 bash mapping_pipeline.sh configs/mapping.yaml
 ```
 
-**Outputs:** `f_*_recalibrated.bam` files, flagstat logs, QC plots (`qc_pipeline.py` runs automatically).
+**Outputs:** `f_*_recalibrated.bam` files, flagstat logs, QC plots (`scripts/qc_mapping.py` runs automatically).
 
 ---
 
@@ -189,12 +195,12 @@ bash somatic_variant_calling_pipeline.sh configs/variant.yaml
 
 ### 4. Germline Calling (optional)
 
-**Script:** `Dragencaller.sh`
+**Script:** `germline_calling_pipeline.sh`
 
 Runs GATK HaplotypeCaller in DRAGEN mode for germline variant calling. Uses the same BAMs produced by Stage 2.
 
 ```bash
-bash Dragencaller.sh configs/dragencaller.yaml
+bash germline_calling_pipeline.sh configs/dragencaller.yaml
 ```
 
 ---
@@ -218,12 +224,12 @@ threads: 8
 bash cnvkit_pipeline.sh configs/cnvkit.yaml
 ```
 
-**PureCN — Script:** `PureCN.sh`
+**PureCN — Script:** `purecn_pipeline.sh`
 
 Estimates tumor purity and ploidy; annotates variants with per-variant somatic probability (`PureCN_ML_SOMATIC`, `PureCN_POSTERIOR_SOMATIC`).
 
 ```bash
-bash PureCN.sh configs/purecn.yaml
+bash purecn_pipeline.sh configs/purecn.yaml
 ```
 
 **Outputs:** `*.call.cns` files (CNVkit), `*_variants.csv` (PureCN).
@@ -259,15 +265,15 @@ Edit the CONFIG block at the top of `pipes/filter.pipe`, then run line-by-line o
 ```
 pf_af_filtered.maf
   │
-  slim_maf.py          coalesce _onko/_func columns, compute VAF, extract COSMIC IDs
+  slim_maf.py            coalesce _onko/_func columns, compute VAF, extract COSMIC IDs
   │
-  merge_maf_purecn_variants.py   join PureCN per-variant data (ML_SOMATIC, POSTERIOR_SOMATIC, CN)
+  merge_purecn.py        join PureCN per-variant data (ML_SOMATIC, POSTERIOR_SOMATIC, CN)
   │
-  1_Filter.py          population AF gate (≤0.001), FILTER/ML conflict annotation
+  filter_basic.py        population AF gate (≤0.001), FILTER/ML conflict annotation
   │
-  2_Filter_new.2.py    biological filter: LOF / OncoKB / hotspot / pathogenicity score
+  filter_biological.py   biological filter: LOF / OncoKB / hotspot / pathogenicity score
   │
-  top_mut_simple.py    top mutated genes per patient (drivers & passengers)
+  top_mutated_genes.py   top mutated genes per patient (drivers & passengers)
 ```
 
 <p align="center">
@@ -284,11 +290,11 @@ bash pipes/filter.pipe
 ### 8. CNV Summary (`pipes/cnv.pipe`)
 
 ```bash
-# Edit ILCEM_DIR, CNVKIT_CALLS, GENE_LIST at top of file, then:
+# Edit PROJECT_DIR, CNVKIT_CALLS, GENE_LIST at top of file, then:
 bash pipes/cnv.pipe
 ```
 
-Produces arm-level CNV calls (`CNV_new_f/`) and gene-level CNV summary (`CNV_new_genes_f.tsv`).
+Produces arm-level CNV calls and gene-level CNV summary.
 
 ---
 
@@ -309,27 +315,27 @@ Merges SNV MAF with CNV summary per gene/sample. Also produces mucinous/lobular 
 |--------|-------|-------------|
 | `trimming_pipeline.sh` | 1 | FastQC + fastp trimming |
 | `mapping_pipeline.sh` | 2 | BWA-MEME align, Picard dedup, GATK BQSR |
-| `qc_pipeline.py` | 2 | Mapping QC plots from flagstat logs |
+| `scripts/qc_mapping.py` | 2 | Mapping QC plots from flagstat logs |
 | `somatic_variant_calling_pipeline.sh` | 3 | Mutect2 + FilterMutectCalls |
-| `Dragencaller.sh` | 4 | DRAGEN-mode germline calling |
+| `germline_calling_pipeline.sh` | 4 | DRAGEN-mode germline calling |
 | `cnvkit_pipeline.sh` | 5 | CNVkit coverage, segmentation, calling |
-| `PureCN.sh` | 5 | PureCN purity estimation + variant annotation |
+| `purecn_pipeline.sh` | 5 | PureCN purity estimation + variant annotation |
 | `vcf_annotation_pipeline.sh` | 6 | Funcotator, VEP/vcf2maf, OncoKB, MAF merge |
-| `merge_mafs.py` | 6 | Merge Funcotator + OncoKB MAFs per sample |
-| `filter_af.py` | 6 | Remove variants in known germline VCFs + dbSNP flags |
-| `slim_maf.py` | 7 | Coalesce columns, compute VAF, extract COSMIC IDs |
-| `merge_maf_purecn_variants.py` | 7 | Join PureCN per-variant data onto slim MAF |
-| `1_Filter.py` | 7 | Population AF gate + FILTER/ML conflict flag |
-| `2_Filter_new.2.py` | 7 | Biological filter (LOF, OncoKB, hotspot, pathogenicity) |
-| `top_mut_simple.py` | 7 | Top mutated genes per patient |
-| `score.py` | 7 | Driver scoring (OncoKB, hotspot, LOF, IMPACT, SIFT, PolyPhen) |
-| `make_3score_table.py` | 7 | IMPACT/SIFT/PolyPhen score table |
-| `filter_by_all_list_scores.py` | 7 | Filter variants by custom gene list |
-| `1_CNV_new.py` | 8 | Arm-level CNV aggregation from CNVkit |
-| `2_CNV.py` | 8 | Cohort arm-level summary report |
-| `3_CNV_new.py` | 8 | Gene-level CNV from gene list |
-| `1_Combine.py` | 9 | Merge SNV MAF + CNV summary per gene/sample |
-| `2_Combine.py` | 9 | Mucinous/lobular comparison counts |
+| `scripts/merge_mafs.py` | 6 | Merge Funcotator + OncoKB MAFs per sample |
+| `scripts/filter_af.py` | 6 | Remove variants in known germline VCFs + dbSNP flags |
+| `scripts/slim_maf.py` | 7 | Coalesce columns, compute VAF, extract COSMIC IDs |
+| `scripts/merge_purecn.py` | 7 | Join PureCN per-variant data onto slim MAF |
+| `scripts/filter_basic.py` | 7 | Population AF gate + FILTER/ML conflict flag |
+| `scripts/filter_biological.py` | 7 | Biological filter (LOF, OncoKB, hotspot, pathogenicity) |
+| `scripts/top_mutated_genes.py` | 7 | Top mutated genes per patient |
+| `scripts/score_variants.py` | 7 | Driver scoring (OncoKB, hotspot, LOF, IMPACT, SIFT, PolyPhen) |
+| `scripts/make_score_table.py` | 7 | IMPACT/SIFT/PolyPhen score table |
+| `scripts/filter_by_gene_list.py` | 7 | Filter variants by custom gene list |
+| `scripts/cnv_arm_summary.py` | 8 | Arm-level CNV aggregation from CNVkit |
+| `scripts/cnv_cohort_report.py` | 8 | Cohort arm-level summary report |
+| `scripts/cnv_gene_summary.py` | 8 | Gene-level CNV from gene list |
+| `scripts/combine_snv_cnv.py` | 9 | Merge SNV MAF + CNV summary per gene/sample |
+| `scripts/combine_comparison.py` | 9 | Mucinous/lobular comparison counts |
 
 ---
 
@@ -347,8 +353,8 @@ bash run_test.sh
 ```
 Input variants:                3
 After slim_maf:                3
-After 1_Filter:                2    ← row 3 removed (gnomADe_AF=0.002, byFrequency flag)
-After 2_Filter:                2    ← both oncogenic CDH1 missense variants retained
+After filter_basic:            2    ← row 3 removed (gnomADe_AF=0.002, byFrequency flag)
+After filter_biological:       2    ← both oncogenic CDH1 missense variants retained
 Breast-dominant:               2    ← both have strong breast COSMIC evidence
 ```
 
