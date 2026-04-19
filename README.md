@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/solo_icon.png" alt="SoloVar" width="150"/>
+  <img src="images/solo_icon.png" alt="SoloVar" width="500"/>
 </p>
 
 <p align="center"><em>"Never tell me the odds!"</em></p>
