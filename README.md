@@ -30,6 +30,7 @@
   - [8. CNV Summary](#8-cnv-summary-cnvpipe)
   - [9. SNV + CNV Integration](#9-snv--cnv-integration-combinepipe)
 - [Script Reference](#script-reference)
+- [Adapting to your project](#adapting-to-your-project)
 - [CDH1 Smoke Test](#cdh1-smoke-test)
 - [Example Results](#example-results)
 
@@ -335,6 +336,67 @@ Merges SNV MAF with CNV summary per gene/sample. Also produces mucinous/lobular 
 | `scripts/cnv_gene_summary.py` | 8 | Gene-level CNV from gene list |
 | `scripts/combine_snv_cnv.py` | 9 | Merge SNV MAF + CNV summary per gene/sample |
 | `scripts/combine_comparison.py` | 9 | Mucinous/lobular comparison counts |
+
+---
+
+## Adapting to your project
+
+> This pipeline was originally developed for the **ILCEM** breast cancer cohort analysis. The core pipeline — alignment, variant calling, annotation, CNV, and filtering — is fully general and should work out of the box for any tumor-only WES project. A handful of analysis scripts contain cohort-specific values (sample names, tissue type, tumor subtypes) that you will need to update before running on your own data. Everything else should be good to go.
+
+Several scripts contain project-specific values that must be updated before use.
+
+### Sample naming convention
+
+`merge_purecn.py` and `merge_mafs.py` parse sample IDs from BAM filenames using the pattern `f_<SAMPLEID>_recalibrated`. If your BAMs follow a different naming scheme, update the regex at the top of each script:
+
+```python
+# merge_purecn.py — line ~12
+m = re.search(r"f_(.+?)_recalibrated", x)   # ← adapt to your naming
+
+# merge_mafs.py — line ~14
+match = re.search(r"_([^_]+)_recalibrated", filename)   # ← adapt to your naming
+```
+
+### Sample → patient mapping
+
+`top_mutated_genes.py` maps sample IDs to patient labels. Replace the hardcoded dict with your own cohort:
+
+```python
+# top_mutated_genes.py — lines 17-23
+sample_to_patient = {
+    "MB1": "Patient_1",   # ← replace with your sample IDs
+    "MB2": "Patient_2",
+    ...
+}
+```
+
+Alternatively pass `--sample-column Tumor_Sample_Barcode` and skip the mapping entirely if your sample IDs are already patient labels.
+
+### Per-sample quality thresholds
+
+`filter_biological.py` applies extra depth/VAF gates to samples known to be noisy. Update `STRICT_SAMPLES` at the top of the file:
+
+```python
+# filter_biological.py — lines 10-13
+STRICT_SAMPLES = {
+    "MB5": (10, 40, 0.05),   # (min_alt_count, min_depth, min_vaf)
+    "MB6": (10, 40, 0.05),   # ← replace with your noisy samples, or leave empty: {}
+}
+```
+
+Set to `{}` to disable the per-sample gate entirely.
+
+### Tissue / tumor type
+
+`filter_biological.py` and `score_variants.py` apply a **breast cancer** bonus weight using COSMIC tissue counts. If your cohort is a different cancer type, replace `"breast"` with your primary tissue throughout those scripts, or remove the tissue-specific weight from the scoring function.
+
+`combine_comparison.py` compares two tumor subtypes hardcoded as `"mucinous"` and `"lobular"`. Replace these with your own subtype labels:
+
+```python
+# combine_comparison.py — line 23
+df = df[df["GeneGroup_norm"].isin({"mucinous", "lobular"})].copy()
+# ↑ replace with your subtypes, e.g. {"luminalA", "TNBC"}
+```
 
 ---
 
