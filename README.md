@@ -54,8 +54,8 @@ somatic_variant_calling_pipeline.sh   Mutect2 + FilterMutectCalls
   ├──► germline_calling_pipeline.sh    (optional) Germline calling
   │
   ├──► cnvkit_pipeline.sh      CNV from BAMs
-  │         │
-  │         └─► purecn_pipeline.sh     Purity + per-variant CN
+  │         
+  ├──► purecn_pipeline.sh     Purity + per-variant CN
   │
   ▼
 vcf_annotation_pipeline.sh    Funcotator → vcf2maf/VEP → OncoKB → merge MAFs
@@ -98,8 +98,7 @@ Install bioinformatics tools (conda recommended):
 conda install -c bioconda bwa-meme samtools gatk4 bcftools fastqc multiqc fastp cnvkit parallel
 ```
 
-> **OncoKB token**: register at [oncokb.org](https://www.oncokb.org) and set `export ONCOKB_TOKEN=your_token`.  
-> Reference the token in `configs/maf.yaml` as `token: ${ONCOKB_TOKEN}` — never commit it directly.
+> **OncoKB token**: register at [oncokb.org](https://www.oncokb.org) and set `export ONCOKB_TOKEN=your_token`.
 
 ---
 
