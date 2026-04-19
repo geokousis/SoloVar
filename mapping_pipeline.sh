@@ -103,7 +103,7 @@ trap cleanup EXIT
 # BWA Indexing (Optional)
 ########################################
 BWA_Indexing() {
-    execute "./build_rmis_dna.sh '$reference'" "Running BWA indexing"
+    execute "bwa-meme index '$reference'" "Running BWA-MEME indexing"
 }
 
 ########################################
@@ -206,8 +206,13 @@ ApplyBQSR() {
     echo "Applied BQSR to $(basename "$input_bam"); output: $(basename "$output_bqsr_bam")" | tee -a "$LOG_FILE"
 }
 run_qc() {
-    execute "cat '${mapping_output_dir}/LOG_'*.txt > '${output_directory}/combined_log.txt'" "Combining flagstat logs"
-    execute "python3 qc_pipeline.py '${output_directory}/combined_log.txt' '${output_directory}'" "Running QC Python script"
+    local combined="${output_directory}/combined_log.txt"
+    : > "$combined"
+    for f in "${mapping_output_dir}/LOG_"*.txt; do
+        echo "=== $(basename "$f") ===" >> "$combined"
+        cat "$f" >> "$combined"
+    done
+    execute "python3 qc_pipeline.py '${combined}' '${output_directory}'" "Running QC Python script"
 }
 BQSR() {
     local input_bam="$1"
@@ -339,24 +344,6 @@ main_pipeline() {
         parallel --jobs "${threads:-1}" ApplyBQSR {1} ::: f_*.bam
         popd > /dev/null
     fi
-	
-        parallel --jobs "$threads" \
-		 :::: bam_list.txt \
-		 ::: "${INTERVALS[@]}"
-
-	while read -r bam; do
-	    base=$(basename "$bam" .bam)
-	    tables=( "${base}"_*.table )
-	    if (( ${#tables[@]} == 0 )); then
-		echo "WARNING: No tables for ${base}; skipping GatherTables/ApplyBQSR"
-		continue
-	    fi
-	    GatherTables "$base" "${tables[@]}"
-	    ApplyBQSR "$bam"
-	done < bam_list.txt
-	
-        popd > /dev/null
-
 
     execute "echo '=== QC ==='" "QC section"
     run_qc

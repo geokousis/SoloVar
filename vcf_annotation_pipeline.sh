@@ -139,14 +139,11 @@ OncoKB_Conversion() {
         --input-vcf \"$renamed_vcf\" \
         --output-maf \"$maf_file\" \
         --vep-path \"$vep_path\" \
-        --vep-data \"$vep_data\" \
+        --vep-data \"${vep_data:-}\" \
         --ncbi-build GRCh38" "VCF to MAF conversion for $base_name"
 
-    # Activate the TOSV conda environment.
-    execute "conda activate TOSV" "Activate TOSV conda environment"
+    # Activate the TOSV conda environment and run OncoKB MafAnnotator.
     conda activate TOSV
-
-    # Run the OncoKB MafAnnotator Python script.
     execute "python3 \"$oncokb_path/MafAnnotator.py\" -i \"$maf_file\" -o \"${onko_out_dir}/discr_KB_${base_name}.maf\" -b \"$token\" -d -t \"$tissue\"" "Running MafAnnotator on $base_name"
 
     # Move the original MAF file to the vep subdirectory.
@@ -175,26 +172,25 @@ main_pipeline() {
     echo "Pipeline started at $(date)" >> "$LOG_FILE"
 
     # --- Part 1: VCF Annotation with Funcotator ---
-    # echo "=== Part 1: VCF Annotation with Funcotator ===" | tee -a "$LOG_FILE"
-    # export -f AnnotateVCF execute
-    # find "$vcf_dir" -name "*.vcf" | parallel --jobs "$threads" AnnotateVCF
+    echo "=== Part 1: VCF Annotation with Funcotator ===" | tee -a "$LOG_FILE"
+    export -f AnnotateVCF execute
+    find "$vcf_dir" -name "*.vcf" | parallel --jobs "$threads" AnnotateVCF
 
-    # # --- Part 2: Optional OncoKB/MAF Conversion ---
-    # if [ "$oncokb_enabled" == "yes" ]; then
-    #     echo "=== Part 2: OncoKB/MAF Conversion ===" | tee -a "$LOG_FILE"
-    #     find "$vcf_dir" -name "*.vcf" | parallel --jobs "$threads" OncoKB_Conversion
+    # --- Part 2: Optional OncoKB/MAF Conversion ---
+    if [ "$oncokb_enabled" == "yes" ]; then
+        echo "=== Part 2: OncoKB/MAF Conversion ===" | tee -a "$LOG_FILE"
+        find "$vcf_dir" -name "*.vcf" | parallel --jobs "$threads" OncoKB_Conversion
+    else
+        echo "OncoKB/MAF Conversion is disabled." | tee -a "$LOG_FILE"
+    fi
 
-    # else
-    #     echo "OncoKB/MAF Conversion is disabled." | tee -a "$LOG_FILE"
-    # fi
-
-    # # --- Part 3: Optional MAF Merging with Hotspot and Cosmic Annotation ---
-    # if [ "$merge_mafs_enabled" == "yes" ]; then
-    #     echo "=== Part 3: Merging MAFs with Hotspot and Cosmic Annotation ===" | tee -a "$LOG_FILE"
-    #     Merge_MAFs
-    # else
-    #     echo "MAF merging is disabled." | tee -a "$LOG_FILE"
-    # fi
+    # --- Part 3: Optional MAF Merging with Hotspot and Cosmic Annotation ---
+    if [ "$merge_mafs_enabled" == "yes" ]; then
+        echo "=== Part 3: Merging MAFs with Hotspot and Cosmic Annotation ===" | tee -a "$LOG_FILE"
+        Merge_MAFs
+    else
+        echo "MAF merging is disabled." | tee -a "$LOG_FILE"
+    fi
 
     # --- Part 4: Optional AF Filtering based on known db ---
     if [ "$AF_filtering_enabled" == "yes" ]; then
@@ -206,7 +202,7 @@ main_pipeline() {
             known_sites_cmd+=" --vcf-file $site"
 	done
 
-	execute "python3 \"$scripts/filter_af.py\" --maf-input \"${merge_output_folder}/combined_merged_with_cosmic.maf\" $known_sites_cmd --output \"${merge_output_folder}/af_filtered.maf\"" "Running MafAnnotator on $base_name"
+	execute "python3 \"$scripts/filter_af.py\" --maf-input \"${merge_output_folder}/combined_merged_with_cosmic.maf\" $known_sites_cmd --output \"${merge_output_folder}/af_filtered.maf\"" "AF filtering on combined merged MAF"
     else
 	echo "AF filtering is disabled." | tee -a "$LOG_FILE"
     fi
@@ -235,13 +231,18 @@ parse_yaml "$CONFIG_FILE"
 [[ "${output_directory}" != */ ]] && output_directory="${output_directory}/"
 [[ "${vcf_dir}" != */ ]] && vcf_dir="${vcf_dir}/"
 
-# If onko_out_dir is not provided in the YAML, default it to output_directory/kb_out.
-if [ -z "$onko_out_dir" ]; then
+# If onko_out_dir is not provided in the YAML, default it to output_directory/maf_onko.
+if [ -z "${onko_out_dir:-}" ]; then
     onko_out_dir="${output_directory}/maf_onko"
 fi
 
+# Default scripts directory to the directory containing this script.
+if [ -z "${scripts:-}" ]; then
+    scripts="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
 # Export variables and functions needed for parallel execution.
-export vcf_dir output_directory threads reference funcotator_data_sources oncokb_enabled onko_out_dir maf2vcf vep_anot vep_path oncokb_path token LOG_FILE tissue vep_data vep_path onko_out_dir map_list maf2vcf
+export vcf_dir output_directory threads reference funcotator_data_sources oncokb_enabled onko_out_dir maf2vcf vep_anot vep_path oncokb_path token LOG_FILE tissue vep_data vep_path onko_out_dir map_list maf2vcf scripts
 export merge_output_folder gatk_path hotspot_file cosmic_file merge_mafs_enabled map_list
 export -f AnnotateVCF OncoKB_Conversion Merge_MAFs execute
 
