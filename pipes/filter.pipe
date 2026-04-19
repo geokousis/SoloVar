@@ -1,0 +1,51 @@
+# =============================================================
+# filter.pipe — MAF post-processing pipeline
+# Edit the CONFIG block below, then run line by line or source.
+# =============================================================
+
+# Auto-detect SoloVar root (parent of pipes/)
+SOLOVAR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPTS="$SOLOVAR_DIR/scripts"
+
+# --- CONFIG --------------------------------------------------
+MERGED_DIR=/path/to/your/merged_output/    # directory where af_filtered.maf lives
+PURECN_ROOT=/path/to/your/purecn/arch/    # root with f_*_recalibrated/ subdirs
+# -------------------------------------------------------------
+
+cd "$MERGED_DIR"
+
+# Remove panel-of-normals variants
+grep -v "panel_of_normals" af_filtered.maf > pf_af_filtered.maf
+
+# Coalesce _onko/_func columns → slim TSV
+python3 "$SCRIPTS/slim_maf.py" \
+    --input           pf_af_filtered.maf \
+    --output          af_filtered_f_pure.slim.tsv \
+    --tumor-types-out af_filtered_f_pure.tumor_types_long.tsv \
+    --summary-dir     slim_summaries/
+
+# Merge with PureCN per-variant data
+python3 "$SCRIPTS/merge_purecn.py" \
+    --slim-maf   af_filtered_f_pure.slim.tsv \
+    --purecn-root "$PURECN_ROOT" \
+    --out         slim_pure.tsv \
+    --uniq-dir    purecn_uniqs/
+
+# Filter 1 — population AF gate + FILTER/ML conflict annotation
+python3 "$SCRIPTS/filter_basic.py" \
+    --in     slim_pure.tsv \
+    --out    1F_slim_pure.tsv \
+    --report 1F.report
+
+# Filter 2 — biological filtering (LOF, OncoKB, hotspot, pathogenicity)
+python3 "$SCRIPTS/filter_biological.py" \
+    --infile             1F_slim_pure.tsv \
+    --outfile            2F_slim_pure.tsv \
+    --outfile_breast_top D2F_slim_pure.tsv \
+    --outfile_germline   germline.tsv
+
+# Top mutated genes — driver candidates
+python3 "$SCRIPTS/top_mutated_genes.py" --infile D2F_slim_pure.tsv --outdir Drivers
+
+# Top mutated genes — passenger background
+python3 "$SCRIPTS/top_mutated_genes.py" --infile 2F_slim_pure.tsv  --outdir Passengers

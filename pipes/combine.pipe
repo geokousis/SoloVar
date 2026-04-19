@@ -1,0 +1,51 @@
+# =============================================================
+# combine.pipe — SNV + CNV integration and comparison outputs
+# Edit the CONFIG block below, then run line by line or source.
+# Requires cnv.pipe to have been run first.
+# =============================================================
+
+# Auto-detect SoloVar root (parent of pipes/)
+SOLOVAR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPTS="$SOLOVAR_DIR/scripts"
+
+# --- CONFIG --------------------------------------------------
+PROJECT_DIR=/path/to/your/project/
+CNV_GENES=${PROJECT_DIR}/cnv_output/cnv_genes.tsv            # output from cnv.pipe
+CNVKIT_CALLS=${PROJECT_DIR}/cnvkit_results/CNV_results/call  # directory with *.call.cns files
+MAF=${PROJECT_DIR}/Merged/2F_slim_pure.tsv                   # filtered MAF from filter.pipe
+GENE_LIST=${PROJECT_DIR}/Merged/Drivers/gene.list            # driver gene list (2-column)
+COMP_GENE_LIST=${PROJECT_DIR}/genes.comp.list                # comparison gene list
+CNV_SAMPLE_REGEX='(?i)^(?:f_)?(?P<id>SAMPLE\d+)(?:_recalibrated)?$'
+# -------------------------------------------------------------
+
+cd "$PROJECT_DIR"
+
+# Merge SNV MAF with CNV summary for driver genes
+python3 "$SCRIPTS/combine_snv_cnv.py" \
+    --maf              "$MAF" \
+    --gene-list        "$GENE_LIST" \
+    --snv-out          SNV.list \
+    --cnv-summary      "$CNV_GENES" \
+    --combined-out     SNV_CNV.list \
+    --cnv-sample-regex "$CNV_SAMPLE_REGEX"
+
+# Gene-level CNV for comparison gene list (e.g. mucinous/lobular markers)
+python3 "$SCRIPTS/cnv_gene_summary.py" \
+    --cnvkit-dir "$CNVKIT_CALLS" \
+    --gene-list  "$COMP_GENE_LIST" \
+    --out        cnv_genes_comp.tsv
+
+# Merge SNV + CNV for comparison gene list
+python3 "$SCRIPTS/combine_snv_cnv.py" \
+    --maf              "$MAF" \
+    --gene-list        "$COMP_GENE_LIST" \
+    --snv-out          SNV_comp.list \
+    --cnv-summary      cnv_genes_comp.tsv \
+    --combined-out     SNV_CNV_comp.list \
+    --cnv-sample-regex "$CNV_SAMPLE_REGEX"
+
+# Mucinous vs lobular summary counts
+python3 "$SCRIPTS/combine_comparison.py" \
+    --combined       SNV_CNV_comp.list \
+    --out-overall    mucinous_lobular_overall.tsv \
+    --out-per-sample mucinous_lobular_by_sample.tsv

@@ -1,0 +1,38 @@
+# =============================================================
+# cnv.pipe — CNV arm-level and gene-level summary from CNVkit
+# Edit the CONFIG block below, then run line by line or source.
+# =============================================================
+
+# Auto-detect SoloVar root (parent of pipes/)
+SOLOVAR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPTS="$SOLOVAR_DIR/scripts"
+
+# --- CONFIG --------------------------------------------------
+PROJECT_DIR=/path/to/your/project/
+CNVKIT_CALLS=${PROJECT_DIR}/cnvkit_results/CNV_results/call  # directory with *.call.cns files
+ARMS_BED=${PROJECT_DIR}/res/hg38_chrom_arms.bed              # chromosome arm BED (hg38)
+TARGETS_BED=${PROJECT_DIR}/res/capture_regions.bed           # WES capture targets BED
+GENE_LIST=${PROJECT_DIR}/Merged/Drivers/gene.list            # driver gene list (2-column)
+OUT_DIR=${PROJECT_DIR}/cnv_output                            # where results are written
+# -------------------------------------------------------------
+
+cd "$PROJECT_DIR"
+mkdir -p "$OUT_DIR"
+
+# Arm-level CNV aggregation across all samples
+python3 "$SCRIPTS/cnv_arm_summary.py" \
+    --cnvkit-dir "$CNVKIT_CALLS" \
+    --arms       "$ARMS_BED" \
+    --targets    "$TARGETS_BED" \
+    --outdir     "$OUT_DIR/arm_summary"
+
+# Cohort arm summary report
+python3 "$SCRIPTS/cnv_cohort_report.py" \
+    "$OUT_DIR/arm_summary/cohort_arm_summary.tsv" \
+    "$OUT_DIR/arm_event_summary.tsv"
+
+# Gene-level CNV for driver gene list
+python3 "$SCRIPTS/cnv_gene_summary.py" \
+    --cnvkit-dir "$CNVKIT_CALLS" \
+    --gene-list  "$GENE_LIST" \
+    --out        "$OUT_DIR/cnv_genes.tsv"

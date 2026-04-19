@@ -1,0 +1,14 @@
+bwa_files: /path/to/bam_dir/           # directory with f_*recalibrated*.bam files
+output_directory: /path/to/variants_output/
+threads: 16
+reference: /path/to/Homo_sapiens_assembly38.fasta
+intervals: /path/to/capture_regions.bed
+padding: 50
+
+pon: /path/to/1000g_pon.hg38.vcf.gz   # panel of normals
+gr: /path/to/af-only-gnomad.hg38.vcf.gz
+subgr: /path/to/small_exac_common_3.hg38.vcf.gz
+
+gatk_path: gatk
+learn_orientation: yes                 # yes/no — model FFPE artifacts
+parallel_mutect: yes                   # yes/no — run Mutect2 in parallel

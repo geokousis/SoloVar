@@ -1,0 +1,14 @@
+samples: /path/to/sample_list.txt          # one FASTQ path per line
+output_directory: /path/to/mapping_output/
+threads: 16
+reference: /path/to/Homo_sapiens_assembly38.fasta
+paired: yes
+
+markduplicates_enabled: yes
+picard_path: /path/to/picard.jar
+gatk_path: gatk                            # or full path to gatk executable
+
+bqsr_enabled: yes
+intervals: /path/to/capture_regions.bed
+padding: 50
+known_sites: "/path/to/dbsnp138.vcf.gz, /path/to/1000G_phase1.vcf.gz, /path/to/Mills_indels.vcf.gz"

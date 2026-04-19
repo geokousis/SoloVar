@@ -1,0 +1,30 @@
+vcf_dir: /path/to/filtered_pass_vcfs/
+output_directory: /path/to/annotation_output/
+threads: 8
+reference: /path/to/Homo_sapiens_assembly38.fasta
+funcotator_data_sources: /path/to/funcotator_dataSources.v1.8.hg38/
+
+# OncoKB / MAF conversion
+oncokb_enabled: yes
+map_list: /path/to/chr_map.txt          # bcftools chromosome rename map (NCBI <-> UCSC)
+onko_out_dir: /path/to/maf_onko/
+maf2vcf: /path/to/mskcc-vcf2maf/       # directory containing vcf2maf.pl
+vep_anot: /path/to/Homo_sapiens.GRCh38.dna.toplevel.fa
+vep_path: /path/to/ensembl-vep/
+vep_data: /path/to/vep_cache/           # optional; leave blank to skip
+oncokb_path: /path/to/oncokb-annotator/
+token: ${ONCOKB_TOKEN}                  # set via: export ONCOKB_TOKEN=your_token
+tissue: Breast Cancer                   # OncoKB tissue type
+
+# MAF merging
+merge_mafs_enabled: yes
+merge_output_folder: /path/to/merged_output/
+hotspot_file: /path/to/hotspots.maf
+cosmic_file: /path/to/Cosmic_GenomeScreensMutant_GRCh38.tsv
+
+# AF filtering (known germline databases)
+AF_filtering_enabled: yes
+known_db: /path/to/gnomad.vcf.gz, /path/to/dbsnp.vcf.gz
+
+gatk_path: gatk
+scripts: /path/to/SoloVar/scripts/      # directory containing SoloVar Python scripts

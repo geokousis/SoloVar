@@ -1,0 +1,8 @@
+bed: /path/to/capture_regions.bed           # WES target BED
+ref: /path/to/Homo_sapiens_assembly38.fasta
+acc: /path/to/access-5kb-mappable.hg38.bed # CNVkit mappable regions
+out_dir: /path/to/cnvkit_output/
+inputsamples: /path/to/bam_list.txt         # one BAM path per line
+cellularity_file: /path/to/cellularity.txt  # sample_id<TAB>purity% (e.g. MB1  42%)
+annotation_file: /path/to/refFlat.txt       # gene annotation for CNVkit
+threads: 8

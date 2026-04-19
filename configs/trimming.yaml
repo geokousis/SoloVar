@@ -1,0 +1,4 @@
+samples: /path/to/sample_list.txt      # one FASTQ path per line (R1; R2 inferred)
+output_directory: /path/to/trimming_output/
+read_type: paired                      # paired or single
+threads: 8

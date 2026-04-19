@@ -1,0 +1,16 @@
+# PureCN configuration
+genome: hg38
+assay: agilent_v6                       # used to name the normalDB: normalDB_<assay>_<genome>.rds
+reference: /path/to/Homo_sapiens_assembly38.fasta
+intervals: /path/to/capture_regions.bed
+output_directory: /path/to/purecn_output/
+bam_dir: /path/to/bam_dir/             # directory with f_*recalibrated*.bam files
+threads: 8
+
+# Optional germline SNP blacklist (population VCF for LOH analysis)
+snp_blacklist: /path/to/gnomad_af_only.vcf.gz
+
+# Optional exclusion VCF (for excluding artefact-prone regions)
+# exclude: /path/to/exclude_regions.vcf
+
+gatk_path: gatk

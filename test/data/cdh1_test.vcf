@@ -1,0 +1,13 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Total depth">
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele frequency">
+##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description="Somatic event">
+##contig=<ID=chr16,length=90338345>
+##reference=GRCh38
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	TUMOR
+chr16	68777022	.	C	T	.	PASS	SOMATIC	GT:AD:DP:AF	0/1:52,18:70:0.257
+chr16	68773838	.	G	A	.	PASS	SOMATIC	GT:AD:DP:AF	0/1:85,12:97:0.124
+chr16	68775640	.	T	A	.	PASS	SOMATIC	GT:AD:DP:AF	0/1:60,25:85:0.294
